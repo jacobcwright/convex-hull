@@ -58,55 +58,58 @@ class ConvexHullSolver(QObject):
         self.view.displayStatusText(text)
 
     def find_upper_tangent(self, leftmost, rightmost, left_hull, right_hull):
-        # find the upper tangent
-        upper_tangent = QLineF(left_hull[leftmost], right_hull[rightmost])
-        # self.showTangent(upper_tangent, GREEN)
-        while True:
-            # find the next point on the left hull
-            next_left = (leftmost + 1) % len(left_hull)
-            # find the next point on the right hull
-            next_right = (rightmost - 1) % len(right_hull)
-            # find the next tangent
-            next_tangent = QLineF(left_hull[next_left], right_hull[next_right])
-            # if the next tangent is above the current tangent
-            if next_tangent.angleTo(upper_tangent) > 0:
-                # update the current tangent
-                upper_tangent = next_tangent
-                # update the leftmost and rightmost points
-                leftmost = next_left
-                rightmost = next_right
-            else:
-                # return the current tangent
-                return upper_tangent
+
+        upper_tangent = QLineF(left_hull[rightmost], right_hull[leftmost])
+        done = False
+        while not done:
+            done = True
+            next_right = leftmost
+            next_left = rightmost
+            upper_tangent = QLineF(left_hull[next_left], right_hull[next_left])
+            prev_slope = 0
+            while upper_tangent.angle() > prev_slope:
+                prev_slope = upper_tangent.angle()
+                next_left = (rightmost - 1) % len(left_hull)
+                upper_tangent = QLineF(left_hull[next_left], right_hull[next_right])
+                done = False
+
+            prev_slope = 0
+            while upper_tangent.angle() < prev_slope:
+                prev_slope = upper_tangent.angle()
+                next_right = (leftmost + 1) % len(right_hull)
+                upper_tangent = QLineF(left_hull[next_left], right_hull[next_right])
+                done = False
+            return upper_tangent
+            
         
 
     def find_lower_tangent(self, leftmost, rightmost, left_hull, right_hull):
-        # find the lower tangent
-        lower_tangent = QLineF(left_hull[leftmost], right_hull[rightmost])
-        # self.showTangent(lower_tangent, GREEN)
-        while True:
-            # find the next point on the left hull
-            next_left = (leftmost - 1) % len(left_hull)
-            # find the next point on the right hull
-            next_right = (rightmost + 1) % len(right_hull)
-            # find the next tangent
-            next_tangent = QLineF(left_hull[next_left], right_hull[next_right])
-            # if the next tangent is below the current tangent
-            if next_tangent.angleTo(lower_tangent) < 0:
-                # update the current tangent
-                lower_tangent = next_tangent
-                # update the leftmost and rightmost points
-                leftmost = next_left
-                rightmost = next_right
-            else:
-                # return the current tangent
-                return lower_tangent
+        lower_tangent = QLineF(left_hull[rightmost], right_hull[leftmost])
+        done = False
+        while not done:
+            done = True
+            next_right = leftmost
+            next_left = rightmost
+            lower_tangent = QLineF(left_hull[next_left], right_hull[next_left])
+            prev_slope = 0
+            while lower_tangent.angle() < prev_slope:
+                prev_slope = lower_tangent.angle()
+                next_left = (rightmost + 1) % len(left_hull)
+                lower_tangent = QLineF(left_hull[next_left], right_hull[next_right])
+                done = False
+
+            prev_slope = 0
+            while lower_tangent.angle() > prev_slope:
+                prev_slope = lower_tangent.angle()
+                next_right = (leftmost - 1) % len(right_hull)
+                lower_tangent = QLineF(left_hull[next_left], right_hull[next_right])
+                done = False
+            return lower_tangent
 
     def merge_hulls(self, left_hull, right_hull):
-        # find the leftmost of right hull and the rightmost point of left hull
-        # leftmost = max(right_hull, key=lambda point:point.x())
-        leftmost = 0
-        rightmost = -1
+        # find the leftmost point of the right hull
+        rightmost = left_hull.index(max(left_hull, key=lambda x: x.x()))
+        leftmost = right_hull.index(min(right_hull, key=lambda x: x.x()))
 
         # find the upper tangent
         upper_tangent = self.find_upper_tangent(leftmost, rightmost, left_hull, right_hull)

@@ -187,7 +187,7 @@ class Proj2GUI(QMainWindow):
             self.view.clearPoints()
             self.view.clearLines()
         self.points = self.newPoints()
-        self.view.addPoints(self.points, (0, 0, 0))
+        self.view.addPoints(self.points, (0, 255, 0))
         self.solveButton.setEnabled(True)
         self.view.update()
         app.processEvents()  # Why is this necessary?????

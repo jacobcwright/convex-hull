@@ -106,25 +106,29 @@ class ConvexHullSolver(QObject):
                 done = False
             return lower_tangent
 
+
     def merge_hulls(self, left_hull, right_hull):
-        # find the leftmost point of the right hull
+        print("merging hulls of size: ", len(left_hull), " and ", len(right_hull))
         rightmost = left_hull.index(max(left_hull, key=lambda x: x.x()))
         leftmost = right_hull.index(min(right_hull, key=lambda x: x.x()))
 
-        # find the upper tangent
         upper_tangent = self.find_upper_tangent(leftmost, rightmost, left_hull, right_hull)
-        # find the lower tangent
         lower_tangent = self.find_lower_tangent(leftmost, rightmost, left_hull, right_hull)
-        # merge the hulls using upper and lower tangent
+
         merged_hull = [upper_tangent.p1()]
+        merged_hull.append(upper_tangent.p2())
         upper_tangent_point = upper_tangent.p2()
-        lower_tangent_point = lower_tangent.p2()
-        while upper_tangent_point != merged_hull[0]:
+        lower_tangent_point = lower_tangent.p1()
+
+        while upper_tangent_point != lower_tangent.p2():
             merged_hull.append(upper_tangent_point)
-            upper_tangent_point = self.find_upper_tangent(merged_hull.index(upper_tangent_point), rightmost, left_hull, right_hull).p2()
-        while lower_tangent_point != merged_hull[0]:
+            upper_tangent_point = right_hull[(right_hull.index(upper_tangent_point) + 1) % len(right_hull)]
+        merged_hull.append(upper_tangent_point)
+
+        while lower_tangent_point != upper_tangent.p1():
             merged_hull.append(lower_tangent_point)
-            lower_tangent_point = self.find_lower_tangent(leftmost, merged_hull.index(lower_tangent_point), left_hull, right_hull).p2()
+            lower_tangent_point = left_hull[(left_hull.index(lower_tangent_point) - 1) % len(left_hull)]
+        merged_hull.append(lower_tangent_point)
         return merged_hull
 
     def convex_hull_helper(self, points):
@@ -148,15 +152,12 @@ class ConvexHullSolver(QObject):
 
         t1 = time.time()
 
-        # TODO: SORT THE POINTS BY INCREASING X-VALUE
         points.sort(key=lambda point:point.x())
         t2 = time.time()
         t3 = time.time()
 
-        # this is a dummy polygon of the first 3 unsorted points
-        # polygon = [QLineF(points[i], points[(i + 1) % 3]) for i in range(3)]
-        # TODO: REPLACE THE LINE ABOVE WITH A CALL TO YOUR DIVIDE-AND-CONQUER CONVEX HULL SOLVER **********************
         hull = self.convex_hull_helper(points)
+        print("hull: ", hull.__str__())
 
         polygon = [QLineF(hull[i], hull[(i + 1) % len(hull)]) for i in range(len(hull))]
 

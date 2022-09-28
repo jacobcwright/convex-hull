@@ -57,98 +57,90 @@ class ConvexHullSolver(QObject):
     def showText(self, text):
         self.view.displayStatusText(text)
 
-    def find_upper_tangent(self, leftmost, rightmost, left_hull, right_hull):
-        upper_tangent = QLineF(left_hull[rightmost], right_hull[leftmost])
-        done = False
-        while not done:
-            done = True
-            next_right = leftmost
-            next_left = rightmost
-            upper_tangent = QLineF(left_hull[next_left], right_hull[next_left])
-            prev_slope = 0
-            while upper_tangent.angle() > prev_slope:
-                prev_slope = upper_tangent.angle()
-                next_left = (rightmost - 1) % len(left_hull)
-                upper_tangent = QLineF(left_hull[next_left], right_hull[next_right])
-                done = False
+    def get_rightmost(self, hull_points):
+        rightmost_point = max(hull_points, key=lambda point:point.x())
+        return hull_points.index(rightmost_point)
 
-            prev_slope = 0
-            while upper_tangent.angle() < prev_slope:
-                prev_slope = upper_tangent.angle()
-                next_right = (leftmost + 1) % len(right_hull)
-                upper_tangent = QLineF(left_hull[next_left], right_hull[next_right])
-                done = False
-            return upper_tangent
-            
-        
+    def get_best_slope_index(self, best_point, start_index, hull, increment):  # 1 if clockwise, -1 if counterclockwise
+        if len(hull) == 1:
+            return 0
+        best_index = start_index
+        prev_slope = None
+        index = start_index
+        for i in range(len(hull)):
+            curr_slope = (hull[index].y() - best_point.y()) / (hull[index].x() - best_point.x())
+            if prev_slope is None:
+                prev_slope = curr_slope
+            elif (curr_slope > prev_slope and increment == 1) or (curr_slope < prev_slope and increment == -1):
+                prev_slope = curr_slope
+                best_index = index
+            else:
+                best_index = (index - increment) % len(hull)
+                break
+            index = (index + increment) % len(hull)
+        return best_index
 
-    def find_lower_tangent(self, leftmost, rightmost, left_hull, right_hull):
-        lower_tangent = QLineF(left_hull[rightmost], right_hull[leftmost])
-        done = False
-        while not done:
-            done = True
-            next_right = leftmost
-            next_left = rightmost
-            lower_tangent = QLineF(left_hull[next_left], right_hull[next_left])
-            prev_slope = 0
-            while lower_tangent.angle() < prev_slope:
-                prev_slope = lower_tangent.angle()
-                next_left = (rightmost + 1) % len(left_hull)
-                lower_tangent = QLineF(left_hull[next_left], right_hull[next_right])
-                done = False
+    def get_top_points(self, leftmost_index, rightmost_index, left_hull, right_hull):
+        best_left = leftmost_index  # best leftmost point of right hull
+        best_right = rightmost_index  # best rightmost point of left hull
+        flag = True
+        while flag:
+            next_left = self.get_best_slope_index(left_hull[best_right], best_left, right_hull, 1)
+            next_right = self.get_best_slope_index(right_hull[next_left], best_right, left_hull, -1)
+            if next_left == best_left and next_right == best_right:
+                flag = False
+            else:
+                best_left = next_left
+                best_right = next_right
+        return best_left, best_right
 
-            prev_slope = 0
-            while lower_tangent.angle() > prev_slope:
-                prev_slope = lower_tangent.angle()
-                next_right = (leftmost - 1) % len(right_hull)
-                lower_tangent = QLineF(left_hull[next_left], right_hull[next_right])
-                done = False
-            return lower_tangent
-
+    def get_bottom_points(self, leftmost_index, rightmost_index, left_hull, right_hull):
+        best_left = leftmost_index
+        best_right = rightmost_index
+        flag = True
+        while flag:
+            next_left = self.get_best_slope_index(left_hull[best_right], best_left, right_hull, -1)
+            next_right = self.get_best_slope_index(right_hull[next_left], best_right, left_hull, 1)
+            if next_left == best_left and next_right == best_right:
+                flag = False
+            else:
+                best_left = next_left
+                best_right = next_right
+        return best_left, best_right
 
     def merge_hulls(self, left_hull, right_hull):
-        print("merging hulls of size: ", len(left_hull), " and ", len(right_hull))
-        rightmost = left_hull.index(max(left_hull, key=lambda x: x.x()))
-        leftmost = right_hull.index(min(right_hull, key=lambda x: x.x()))
+        rightmost = self.get_rightmost(left_hull)
+        leftmost = 0  
+        top_right, top_left = self.get_top_points(leftmost, rightmost, left_hull, right_hull)
+        bottom_right, bottom_left = self.get_bottom_points(leftmost, rightmost, left_hull, right_hull)
+        new_hull = []
 
-        upper_tangent = self.find_upper_tangent(leftmost, rightmost, left_hull, right_hull)
-        lower_tangent = self.find_lower_tangent(leftmost, rightmost, left_hull, right_hull)
-
-        merged_hull = [upper_tangent.p1()]
-        
-        for i in range(0, left_hull.index(upper_tangent.p1())):
-            merged_hull.append(left_hull[i])
-
-        index = right_hull.index(upper_tangent.p2())
+        for x in range(0, top_left + 1):
+            new_hull.append(left_hull[x])
         i = 0
+        index = top_right
         while i < len(right_hull):
-            merged_hull.append(right_hull[index])
-            if index == lower_tangent.p2():
+            new_hull.append(right_hull[index])
+            if index == bottom_right:
                 break
-            index = (index + 1) % len(right_hull)
             i += 1
+            index = (index + 1) % len(right_hull)
 
-        if upper_tangent.p1() != lower_tangent.p1() and lower_tangent.p2() != 0:
-            for i in range(left_hull.index(lower_tangent.p1()), len(left_hull)):
-                merged_hull.append(left_hull[i])
-
-        print("Merged hull length: ", len(merged_hull))
-        return merged_hull
+        if bottom_left != top_left and bottom_left != 0:
+            for x in range(bottom_left, len(left_hull)):
+                new_hull.append(left_hull[x])
+        return new_hull
 
     def convex_hull_helper(self, points):
-        if(len(points) <= 3):
+        if len(points) == 1 or len(points) == 2:
             return points
-        # split left and right points
-        left = points[:len(points)//2]
-        right = points[len(points)//2:]
-        # find hulls for left and right
-        left_hull = self.convex_hull_helper(left)
-        right_hull = self.convex_hull_helper(right)
-        # merge the hulls and return new set of points
+        left_side = points[:len(points) // 2]
+        right_side = points[len(points) // 2:]
+        left_hull = self.convex_hull_helper(left_side)
+        right_hull = self.convex_hull_helper(right_side)
         return self.merge_hulls(left_hull, right_hull)
 
-    # This is the method that gets called by the GUI and actually executes
-    # the finding of the hull
+
     def compute_hull(self, points, pause, view):
         self.pause = pause
         self.view = view

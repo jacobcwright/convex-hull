@@ -70,11 +70,8 @@ class ConvexHullSolver(QObject):
         t3 = time.time()
 
         hull = self.convex_hull_helper(points)
-        # print("hull: ", hull.__str__())
 
         polygon = [QLineF(hull[i], hull[(i + 1) % len(hull)]) for i in range(0,len(hull))]
-
-        # print("Polygon: ", polygon.__str__())
 
         t4 = time.time()
 

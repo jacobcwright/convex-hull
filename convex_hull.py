@@ -58,7 +58,6 @@ class ConvexHullSolver(QObject):
         self.view.displayStatusText(text)
 
     def find_upper_tangent(self, leftmost, rightmost, left_hull, right_hull):
-
         upper_tangent = QLineF(left_hull[rightmost], right_hull[leftmost])
         done = False
         while not done:
@@ -116,19 +115,24 @@ class ConvexHullSolver(QObject):
         lower_tangent = self.find_lower_tangent(leftmost, rightmost, left_hull, right_hull)
 
         merged_hull = [upper_tangent.p1()]
-        merged_hull.append(upper_tangent.p2())
-        upper_tangent_point = upper_tangent.p2()
-        lower_tangent_point = lower_tangent.p1()
+        
+        for i in range(0, left_hull.index(upper_tangent.p1())):
+            merged_hull.append(left_hull[i])
 
-        while upper_tangent_point != lower_tangent.p2():
-            merged_hull.append(upper_tangent_point)
-            upper_tangent_point = right_hull[(right_hull.index(upper_tangent_point) + 1) % len(right_hull)]
-        merged_hull.append(upper_tangent_point)
+        index = right_hull.index(upper_tangent.p2())
+        i = 0
+        while i < len(right_hull):
+            merged_hull.append(right_hull[index])
+            if index == lower_tangent.p2():
+                break
+            index = (index + 1) % len(right_hull)
+            i += 1
 
-        while lower_tangent_point != upper_tangent.p1():
-            merged_hull.append(lower_tangent_point)
-            lower_tangent_point = left_hull[(left_hull.index(lower_tangent_point) - 1) % len(left_hull)]
-        merged_hull.append(lower_tangent_point)
+        if upper_tangent.p1() != lower_tangent.p1() and lower_tangent.p2() != 0:
+            for i in range(left_hull.index(lower_tangent.p1()), len(left_hull)):
+                merged_hull.append(left_hull[i])
+
+        print("Merged hull length: ", len(merged_hull))
         return merged_hull
 
     def convex_hull_helper(self, points):
@@ -159,7 +163,9 @@ class ConvexHullSolver(QObject):
         hull = self.convex_hull_helper(points)
         print("hull: ", hull.__str__())
 
-        polygon = [QLineF(hull[i], hull[(i + 1) % len(hull)]) for i in range(len(hull))]
+        polygon = [QLineF(hull[i], hull[(i + 1) % len(hull)]) for i in range(0,len(hull))]
+
+        print("Polygon: ", polygon.__str__())
 
 
         t4 = time.time()
